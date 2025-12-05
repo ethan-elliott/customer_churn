@@ -1,9 +1,8 @@
 from src.data.load_data import load_dataset
 from src.data.preprocess import clean_dataset
-from src.visualization.eda import plot_eda
+from src.models.decision_tree import train_decision_tree
 from src.models.train_model import split_data, plot_roc_curve
 from src.models.knn_model import train_knn_model
-from src.models.dumb_model import train_dumb_model
 from src.visualization.performance import (
     plot_confusion_matrices,
     plot_performance_comparison,
@@ -11,45 +10,53 @@ from src.visualization.performance import (
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+import pandas as pd
 
 
 def main() -> None:
     print("---Loading data...")
-    raw_df = load_dataset("data/raw/card_transdata.csv")
-    
-    # Print shape of the raw dataset
-    print(f"Raw dataset shape: {raw_df.shape}")
+    raw_df = load_dataset("data/raw/train.csv")
+    raw_test = load_dataset("data/raw/test.csv")
 
     print("---Cleaning data...")
     clean_df = clean_dataset(raw_df)
-
-    print(f"Cleaned dataset shape: {clean_df.shape}")
-
-    print("---Creating EDA visuals...")
-    plot_eda(clean_df)
+    clean_df.to_csv('./data/processed/clean_data')
+    clean_test = clean_dataset(raw_test)
+    clean_test.to_csv('./data/processed/clean_test')
+    X_cols_knn = ['Usage Frequency', 'Support Calls','Age']
+    X_cols_tree = ['Age','Tenure','Usage Frequency','Support Calls','Total Spend','Last Interaction','Contract Length','Gender','Subscription Type']
 
     print("---Splitting data...")
-    X_train, X_val, X_test, y_train, y_val, y_test = split_data(clean_df)
+    X_train, X_val, y_train, y_val= split_data(clean_df)
+    X_test_knn = clean_test[X_cols_knn]
+    X_test_tree = clean_test[X_cols_tree]
+    y_test = clean_test['Churn']
 
     print("---Training models...")
     knn_model = train_knn_model(X_train, y_train)
-    dumb_model = train_dumb_model(X_train, y_train)
+    tree = train_decision_tree(X_train, y_train)
 
     print("---Evaluating on validation set...")
-    y_val_pred_knn = knn_model.predict(X_val)
-    y_val_pred_dumb = dumb_model.predict(X_val)
+    y_val_pred_knn = knn_model.predict(X_val[X_cols_knn])
+    y_val_pred_tree = tree.predict(X_val[X_cols_tree])
 
-    val_prob_knn = knn_model.predict_proba(X_val)[:, 1]
-    val_prob_dumb = dumb_model.predict_proba(X_val)[:, 1]
+    val_prob_knn = knn_model.predict_proba(X_val[X_cols_knn])[:, 1]
+    val_prob_tree = tree.predict_proba(X_val[X_cols_tree])[:, 1]
 
-    plot_confusion_matrices(y_val, y_val_pred_dumb, y_val_pred_knn)
-    plot_performance_comparison(y_val, y_val_pred_dumb, y_val_pred_knn)
 
-    auc_dumb = plot_roc_curve(y_val, val_prob_dumb, "Never Fraud")
-    auc_knn = plot_roc_curve(y_val, val_prob_knn, "3-NN")
+    plot_confusion_matrices(y_val, y_val_pred_tree, y_val_pred_knn)
+    plot_performance_comparison(y_val, y_val_pred_tree, y_val_pred_knn)
 
-    best_model = knn_model if auc_knn >= auc_dumb else dumb_model
-    best_label = "3-NN" if best_model is knn_model else "Never Fraud"
+    auc_tree = plot_roc_curve(y_val, val_prob_tree, "Never Fraud")
+    auc_knn = plot_roc_curve(y_val, val_prob_knn, "5-NN")
+
+    best_model = knn_model if auc_knn >= auc_tree else tree
+    if best_model is knn_model:
+        best_label = "5-NN"
+        X_test = X_test_knn
+    else:
+        best_label = "Decision Tree"   
+        X_test = X_test_tree  
 
     print(f"---Testing best model ({best_label})...")
     y_test_pred = best_model.predict(X_test)
