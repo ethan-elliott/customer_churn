@@ -27,14 +27,13 @@ def main() -> None:
     X_cols_tree = ['Age','Tenure','Usage Frequency','Support Calls','Total Spend','Last Interaction','Contract Length','Gender','Subscription Type']
 
     print("---Splitting data...")
-    X_train, X_val, y_train, y_val= split_data(clean_df)
-    X_test_knn = clean_test[X_cols_knn]
-    X_test_tree = clean_test[X_cols_tree]
-    y_test = clean_test['Churn']
+    X_train, X_val, X_test, y_train, y_val, y_test = split_data(clean_df)
+    X_test_knn = X_test[X_cols_knn]
+    X_test_tree = X_test[X_cols_tree]
 
     print("---Training models...")
-    knn_model = train_knn_model(X_train, y_train)
-    tree = train_decision_tree(X_train, y_train)
+    knn_model = train_knn_model(X_train[X_cols_knn], y_train)
+    tree = train_decision_tree(X_train[X_cols_tree], y_train)
 
     print("---Evaluating on validation set...")
     y_val_pred_knn = knn_model.predict(X_val[X_cols_knn])
@@ -47,7 +46,7 @@ def main() -> None:
     plot_confusion_matrices(y_val, y_val_pred_tree, y_val_pred_knn)
     plot_performance_comparison(y_val, y_val_pred_tree, y_val_pred_knn)
 
-    auc_tree = plot_roc_curve(y_val, val_prob_tree, "Never Fraud")
+    auc_tree = plot_roc_curve(y_val, val_prob_tree, "Decision Tree")
     auc_knn = plot_roc_curve(y_val, val_prob_knn, "5-NN")
 
     best_model = knn_model if auc_knn >= auc_tree else tree
