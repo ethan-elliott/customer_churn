@@ -15,14 +15,14 @@ import pandas as pd
 
 def main() -> None:
     print("---Loading data...")
-    raw_df = load_dataset("data/raw/train.csv")
-    raw_test = load_dataset("data/raw/test.csv")
+    raw_df = load_dataset("data/raw/train.csv") #Labelled data for supervised learning
+    raw_test = load_dataset("data/raw/test.csv") #Unlabeled test data
 
     print("---Cleaning data...")
     clean_df = clean_dataset(raw_df)
     clean_df.to_csv('./data/processed/clean_data')
     clean_test = clean_dataset(raw_test)
-    clean_test.to_csv('./data/processed/clean_test')
+    clean_test.to_csv('./data/processed/clean_test') #Unlabeled test data
     X_cols_knn = ['Usage Frequency', 'Support Calls','Age']
     X_cols_tree = ['Age','Tenure','Usage Frequency','Support Calls','Total Spend','Last Interaction','Contract Length','Gender','Subscription Type']
 
@@ -71,6 +71,10 @@ def main() -> None:
     plt.tight_layout()
     plt.show()
 
+    print(f'---Applying best model ({best_label}) to unlabeled test data...')
+    submission = pd.DataFrame(clean_test['CustomerID'])
+    submission['Churn'] = best_model.predict_proba(clean_test[X_cols_tree])[:,1]
+    submission.to_csv('./data/submission/best_guess.csv', index=False)
     print("Done.")
 
 
