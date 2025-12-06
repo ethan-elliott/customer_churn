@@ -7,6 +7,7 @@ from src.visualization.performance import (
     plot_confusion_matrices,
     plot_performance_comparison,
 )
+from src.models.forest import random_forest
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -34,28 +35,26 @@ def main() -> None:
     print("---Training models...")
     knn_model = train_knn_model(X_train[X_cols_knn], y_train)
     tree = train_decision_tree(X_train[X_cols_tree], y_train)
+    forest = random_forest(X_train, y_train) #added later because it got a better score
 
     print("---Evaluating on validation set...")
     y_val_pred_knn = knn_model.predict(X_val[X_cols_knn])
     y_val_pred_tree = tree.predict(X_val[X_cols_tree])
+    y_val_pred_forest = forest.predict(X_val)
 
     val_prob_knn = knn_model.predict_proba(X_val[X_cols_knn])[:, 1]
     val_prob_tree = tree.predict_proba(X_val[X_cols_tree])[:, 1]
-
+    val_prob_forest = forest.predict_proba(X_val)[:, 1]
 
     plot_confusion_matrices(y_val, y_val_pred_tree, y_val_pred_knn)
     plot_performance_comparison(y_val, y_val_pred_tree, y_val_pred_knn)
 
     auc_tree = plot_roc_curve(y_val, val_prob_tree, "Decision Tree")
     auc_knn = plot_roc_curve(y_val, val_prob_knn, "5-NN")
+    auc_forest = plot_roc_curve(y_val, val_prob_forest, "Random Forest")
 
-    best_model = knn_model if auc_knn >= auc_tree else tree
-    if best_model is knn_model:
-        best_label = "5-NN"
-        X_test = X_test_knn
-    else:
-        best_label = "Decision Tree"   
-        X_test = X_test_tree  
+    best_model = forest
+    best_label = "Random Forest"
 
     print(f"---Testing best model ({best_label})...")
     y_test_pred = best_model.predict(X_test)
